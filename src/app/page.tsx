@@ -5,15 +5,23 @@ import io from "socket.io-client";
 const socket = io("http://localhost:3000"); // Conectar al backend
 
 export default function Home() {
+  const [userId, setUserId] = useState<string>("");
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<{ user: string; message: string }[]>(
-    []
-  );
+  const [messages, setMessages] = useState<{ user: string; message: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Escuchar mensajes del servidor
-    socket.on("receiveMessage", (data) => {
+    // Solo acceder a localStorage en el cliente
+    const storedUserId = localStorage.getItem("userId");
+    if (storedUserId) {
+      setUserId(storedUserId);
+    } else {
+      const newUserId = `user_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem("userId", newUserId);
+      setUserId(newUserId);
+    }
+
+    socket.on("receiveMessage", (data: { user: string; message: string }) => {
       setMessages((prev) => [...prev, data]);
     });
 
@@ -24,28 +32,30 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message) return;
+    if (!message || !userId) return;
 
     setIsLoading(true);
-    // Enviar mensaje al servidor
-    socket.emit("sendMessage", { message });
+
+    // Enviar mensaje con userId
+    socket.emit("sendMessage", { userId, message });
 
     setMessages((prev) => [...prev, { user: "You", message }]);
     setMessage('');
 
-    // Simular espera de respuesta de la IA
-    setTimeout(() => {
+    // Escuchar la respuesta de la IA
+    socket.on("receiveMessage", (data: { user: string; message: string }) => {
+      setMessages((prev) => [...prev, data]);
       setIsLoading(false);
-    }, 2000); // Ajusta este tiempo según sea necesario
+    });
   };
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
       <div className="bg-green-600 text-white text-lg font-bold p-4">
-        AI Assistant
+        AI Assistant {userId ? `(User: ${userId})` : ""}
       </div>
-      {/* Chat Continer */}
+      {/* Chat Container */}
       <div className="flex-1 overflow-y-auto p-4">
         {isLoading && (
           <div className="flex justify-center p-2">
