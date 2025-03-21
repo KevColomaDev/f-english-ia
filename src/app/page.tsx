@@ -21,12 +21,16 @@ export default function Home() {
       setUserId(newUserId);
     }
 
-    socket.on("receiveMessage", (data: { user: string; message: string }) => {
+    // Registrar el evento solo una vez
+    const receiveMessageHandler = (data: { user: string; message: string }) => {
       setMessages((prev) => [...prev, data]);
-    });
+      setIsLoading(false); // Asegurarse de detener el loading cuando llega respuesta
+    };
+
+    socket.on("receiveMessage", receiveMessageHandler);
 
     return () => {
-      socket.off("receiveMessage");
+      socket.off("receiveMessage", receiveMessageHandler);
     };
   }, []);
 
@@ -41,12 +45,6 @@ export default function Home() {
 
     setMessages((prev) => [...prev, { user: "You", message }]);
     setMessage('');
-
-    // Escuchar la respuesta de la IA
-    socket.on("receiveMessage", (data: { user: string; message: string }) => {
-      setMessages((prev) => [...prev, data]);
-      setIsLoading(false);
-    });
   };
 
   return (
